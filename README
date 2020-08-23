@@ -1,0 +1,16 @@
+is386
+Indervir Singh
+Sun Sep 01 11:33:00 EDT 2019
+CS283
+Assignment 3 - IPC Programming Assignment: Four-In-A-Row
+
+Compiler: gcc (Ubuntu 7.4.0-1ubuntu1~18.04.1) 7.4.0
+OS: Linux tux4 4.15.0-51-generic #55-Ubuntu SMP Wed May 15 14:27:21 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
+
+To build this program type "make build". To run the program type "GAMES=4 DIMENSION=8 make run". To run the test cases, type "make test". To clean the resulting files, type "make clean".
+
+For the test cases, I have 4 that test placing pieces on the board, printing the board, and checking for 4 in a row in all directions. They are built into the main application because I was not sure how to make it separately. I apologize for any inconvenience that this may cause.
+
+The program runs well. The parent successfully forks the children and creates a pair of pipes for each. Then the parent goes to each child and both execute 1 turn of the game before the parent moves to the next child. This continues until the parent wins or loses. For the move selection logic, the parent first randomly picks a column when forking and saves that column to an int array. This means that the parent has a specific column for each child that it will be putting all its pieces in. Then during the placement phase, the parent writes a message to the child, telling it what columns to choose from. Then the child takes that range and randomly picks a column and sends that column to the parent. The parent does the placing for both processes. Once the games are over, the board is displayed and the amount of wins and losses are shown.
+
+This was a great way to learn about processes and pipes. I imagined this almost literally, as a child plays a game of connect 4 with their parent. It was a very fun assignment and I learned a lot.

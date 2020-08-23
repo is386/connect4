@@ -7,37 +7,38 @@
 #include "csapp.h"
 
 // Struct that holds the gameboard
-struct Board {
-    char** b;
+struct Board
+{
+    char **b;
 };
 
 void child(int id, int pfd[2], int cfd[2]);
-void printboard(int d, char** board);
-int place(int d, int pos, char** board, char piece);
-int check4(int d, char** board, char piece);
-int testing();
+void printboard(int d, char **board);
+int place(int d, int pos, char **board, char piece);
+int check4(int d, char **board, char piece);
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     int status, c, d, childPos, myPos, wins = 0, losses = 0;
 
     // Check if testing and for args
-    if (argc == 2 && argv[1][0] == 't') {
-        testing();
-        return 0;
-    }
-    else if (argc < 2) {
+    if (argc < 2)
+    {
         printf("Pass the amount of games as arg 1!\n");
         return 1;
     }
-    else if (argc < 3) {
+    else if (argc < 3)
+    {
         printf("Pass the number of columns for the board as arg 2!\n");
         return 1;
     }
-    else {
+    else
+    {
         c = atoi(argv[1]);
         d = atoi(argv[2]);
 
-        if (c <= 0 || d <= 3) {
+        if (c <= 0 || d <= 3)
+        {
             printf("Number of Games or Dimension of Board too low!\n");
             return 0;
         }
@@ -53,70 +54,83 @@ int main(int argc, char *argv[]) {
     srand(time(NULL));
 
     // Creates a row of the boards based on the given dimension, d.
-    for (int i = 0; i < d; i++) {
+    for (int i = 0; i < d; i++)
+    {
         line[i] = '-';
     }
     line[d] = '\0';
 
     // Creates a parent and child pipe for each requested child, c.
-    for (int i = 0; i < c; i++) {
-        if (pipe(cfd[i]) < 0) {
+    for (int i = 0; i < c; i++)
+    {
+        if (pipe(cfd[i]) < 0)
+        {
             printf("Child Pipe Creation Error\n");
         }
-        if (pipe(pfd[i]) < 0) {
+        if (pipe(pfd[i]) < 0)
+        {
             printf("Parent Pipe Creation Error\n");
         }
     }
 
     // Iterates over every child.
-    for (int i = 0; i < c; i++) {
+    for (int i = 0; i < c; i++)
+    {
         // Mallocs a board for the child.
-        boards[i].b = malloc(sizeof(char*) * d);
+        boards[i].b = malloc(sizeof(char *) * d);
 
         // Mallocs the rows of the board.
-        for (int j = 0; j < d; j++) {
+        for (int j = 0; j < d; j++)
+        {
             boards[i].b[j] = malloc(sizeof(char) * d);
             strcpy(boards[i].b[j], line);
         }
 
         // Forks the child and the child goes to the child function.
         pid[i] = fork();
-        if (pid[i] == 0) {
+        if (pid[i] == 0)
+        {
             child(i, pfd[i], cfd[i]);
             return 0;
         }
-        else {
+        else
+        {
             // The parent picks a random column that it will place its pieces in all game. This gives the parent a higher chance of winning.
-            cols[i] = rand() % ((d-1) + 1);
+            cols[i] = rand() % ((d - 1) + 1);
         }
     }
 
     // After all the children have been forked, the games begin.
-    while (1) {
+    while (1)
+    {
         // Iterates over all children
-        for (int i = 0; i < c; i++) {
+        for (int i = 0; i < c; i++)
+        {
             strcpy(msg, "");
             strcpy(buf, "");
             myPos = cols[i];
             // Sends a message to the child containing the parent's designated column, and the range of the columns of the board
-            sprintf(msg, "%d %d %d\n", 0, d-1, myPos);
+            sprintf(msg, "%d %d %d\n", 0, d - 1, myPos);
             rio_writen(pfd[i][1], msg, strlen(msg));
             rio_readinitb(&rio, cfd[i][0]);
 
             // Waits for the child to send a message back.
-            while(1) {
+            while (1)
+            {
                 int rdval = rio_readlineb(&rio, buf, MAXLINE);
-                if (rdval != 0) {
+                if (rdval != 0)
+                {
                     break;
                 }
             }
 
             // Tokenizes the child message that contains the column they will place their piece in.
-            char* token = strtok(buf, "\n");
+            char *token = strtok(buf, "\n");
             childPos = atoi(token);
 
             // The child goes first. If it returns a 1, the parent less and all pipes are closed and the board is printed.
-            if (place(d, childPos, boards[i].b, 'C')) {
+            if (place(d, childPos, boards[i].b, 'C'))
+            {
                 losses += 1;
                 rio_writen(pfd[i][1], "done", MAXLINE);
                 printboard(d, boards[i].b);
@@ -126,7 +140,8 @@ int main(int argc, char *argv[]) {
                 close(cfd[i][1]);
             }
             // The parent goes first. If it returns a 1, the parent won and all pipes are closed and the board is printed.
-            else if (place(d, myPos, boards[i].b, 'P')) {
+            else if (place(d, myPos, boards[i].b, 'P'))
+            {
                 wins += 1;
                 rio_writen(pfd[i][1], "done", MAXLINE);
                 printboard(d, boards[i].b);
@@ -137,11 +152,12 @@ int main(int argc, char *argv[]) {
             }
 
             // Prints what happened during this turn
-            printf("Game %d: Parent placed a chip in column %d.\n", i+1, myPos);
-            printf("Game %d: Child placed a chip in column %d.\n\n", i+1, childPos);
+            printf("Game %d: Parent placed a chip in column %d.\n", i + 1, myPos);
+            printf("Game %d: Child placed a chip in column %d.\n\n", i + 1, childPos);
         }
         // If the amount of wins and losses equals the amount of children, the games are done. Otherwise, continue playing.
-        if ((wins + losses) == c) {
+        if ((wins + losses) == c)
+        {
             break;
         }
     }
@@ -149,9 +165,11 @@ int main(int argc, char *argv[]) {
     printf("\nAll Games Completed. Wins: %d, Losses: %d\n", wins, losses);
 
     // Waits for each child and frees the boards.
-    for (int i = 0; i < c; i++) {
+    for (int i = 0; i < c; i++)
+    {
         wait(NULL);
-        for (int j = 0; j < d; j++) {
+        for (int j = 0; j < d; j++)
+        {
             free(boards[i].b[j]);
         }
         free(boards[i].b);
@@ -161,53 +179,69 @@ int main(int argc, char *argv[]) {
 }
 
 // Places the given piece on the given board at the given position.
-int place(int d, int pos, char** board, char piece) {
+int place(int d, int pos, char **board, char piece)
+{
     int x;
 
-    for (x = 0; x < d; x++) {
-        if (board[x][pos] != '-') {
-            board[x-1][pos] = piece;
+    for (x = 0; x < d; x++)
+    {
+        if (board[x][pos] != '-')
+        {
+            board[x - 1][pos] = piece;
             return check4(d, board, piece);
         }
     }
 
-    board[x-1][pos] = piece;
+    board[x - 1][pos] = piece;
     return check4(d, board, piece);
 }
 
 // Checks for 4 in a row on the given board for the given piece. Returns 1 for winner.
-int check4(int d, char** board, char piece) {
+int check4(int d, char **board, char piece)
+{
     // Checks Vertically
-    for (int x = 0; x < d-3; x++) {
-        for (int y = 0; y < d; y++) {
-            if (board[x][y] == piece && board[x+1][y] == piece && board[x+2][y] == piece && board[x+3][y] == piece) {\
+    for (int x = 0; x < d - 3; x++)
+    {
+        for (int y = 0; y < d; y++)
+        {
+            if (board[x][y] == piece && board[x + 1][y] == piece && board[x + 2][y] == piece && board[x + 3][y] == piece)
+            {
                 printf("Four in a Row!\n");
                 return 1;
             }
         }
     }
     // Checks Horizontally
-    for (int x = 0; x < d; x++) {
-        for (int y = 0; y < d-3; y++) {
-            if (board[x][y] == piece && board[x][y+1] == piece && board[x][y+2] == piece && board[x][y+3] == piece) {
+    for (int x = 0; x < d; x++)
+    {
+        for (int y = 0; y < d - 3; y++)
+        {
+            if (board[x][y] == piece && board[x][y + 1] == piece && board[x][y + 2] == piece && board[x][y + 3] == piece)
+            {
                 printf("Four in a Row!\n");
                 return 1;
             }
         }
     }
     // Checks Diagonally in the NE direction
-    for (int x = 0; x < d - 3; x++) {
-        for (int y = 3; y < d; y++) {
-            if (board[x][y] == piece && board[x+1][y-1] == piece && board[x+2][y-2] == piece && board[x+3][y-3] == piece) {
+    for (int x = 0; x < d - 3; x++)
+    {
+        for (int y = 3; y < d; y++)
+        {
+            if (board[x][y] == piece && board[x + 1][y - 1] == piece && board[x + 2][y - 2] == piece && board[x + 3][y - 3] == piece)
+            {
                 printf("Four in a Row!\n");
                 return 1;
             }
         }
     }
     // Checks Diagonally in the NW direction
-    for (int x = 0; x < d - 3; x++) {
-        for (int y = 0; y < d - 3; y++) {
-            if (board[x][y] == piece && board[x+1][y+1] == piece && board[x+2][y+2] == piece && board[x+3][y+3] == piece) {
+    for (int x = 0; x < d - 3; x++)
+    {
+        for (int y = 0; y < d - 3; y++)
+        {
+            if (board[x][y] == piece && board[x + 1][y + 1] == piece && board[x + 2][y + 2] == piece && board[x + 3][y + 3] == piece)
+            {
                 printf("Four in a Row!\n");
                 return 1;
             }
@@ -217,14 +251,17 @@ int check4(int d, char** board, char piece) {
 }
 
 // Prints the game board
-void printboard(int d, char** board) {
-    for (int i = 0; i < d; i++) {
+void printboard(int d, char **board)
+{
+    for (int i = 0; i < d; i++)
+    {
         printf("%s\n", board[i]);
     }
 }
 
 // The child process runs this
-void child(int id, int pfd[2], int cfd[2]) {
+void child(int id, int pfd[2], int cfd[2])
+{
     int min, max, pcol, mycol = 0;
     rio_t rio;
     char buf[MAXLINE];
@@ -232,20 +269,22 @@ void child(int id, int pfd[2], int cfd[2]) {
     rio_readinitb(&rio, pfd[0]);
     srand(time(NULL) + id + mycol);
 
-    printf("Game Board %d has a process id of %d\n", id+1, getpid());
+    printf("Game Board %d has a process id of %d\n", id + 1, getpid());
 
     // Loop waits for the parent to send it some message.
-    while(1) {
+    while (1)
+    {
         strcpy(msg, "");
         strcpy(buf, "");
         rio_readlineb(&rio, buf, MAXLINE);
         // If the message is done, the child exits the function and closes the pipes.
-        if (strcmp(buf, "done") == 0) {
+        if (strcmp(buf, "done") == 0)
+        {
             break;
         }
 
         // Parses the parent's message
-        char* token = strtok(buf, " ");
+        char *token = strtok(buf, " ");
         min = atoi(token);
         token = strtok(NULL, " ");
         max = atoi(token);
@@ -253,9 +292,11 @@ void child(int id, int pfd[2], int cfd[2]) {
         pcol = atoi(token);
 
         // Randomly picks a column that the parent didn't pick. This gives the parent a higher chance of winning.
-        while (1) {
+        while (1)
+        {
             mycol = rand() % (max + 1 - min) + min;
-            if (mycol != pcol) {
+            if (mycol != pcol)
+            {
                 break;
             }
         }
@@ -270,86 +311,4 @@ void child(int id, int pfd[2], int cfd[2]) {
     close(cfd[0]);
     close(cfd[1]);
     return;
-}
-
-// Test cases that test all connect 4 possibilities
-int testing() {
-    int d = 13;
-    char** board;
-    char line[] = "-------------\0";
-    board = malloc(sizeof(char*) * d);
-
-    for (int i = 0; i < d; i++) {
-        board[i] = malloc(sizeof(char) * d);
-        strcpy(board[i], line);
-    }
-
-    printf("Test 1: Placing Piece in column 1.\n");
-    if (place(d, 0, board, 'O') == 0) {
-        printboard(d, board);
-        printf("Test 1 Passed.\n\n");
-    }
-    else {
-        printboard(d, board);
-        printf("Test 1 Failed.\n\n");
-    }
-
-    printf("Test 2: Checking 4 in a Row Horizontally.\n");
-    int win = place(d, 2, board, 'H');
-    win = place(d, 3, board, 'H');
-    win = place(d, 4, board, 'H');
-    win = place(d, 5, board, 'H');
-    if (win == 1) {
-        printboard(d, board);
-        printf("Test 2 Passed.\n\n");
-    }
-    else {
-        printboard(d, board);
-        printf("Test 2 Failed.\n\n");
-    }
-
-    win = 0;
-
-    printf("Test 3: Checking 4 in a Row Vertically.\n");
-    win = place(d, 7, board, 'V');
-    win = place(d, 7, board, 'V');
-    win = place(d, 7, board, 'V');
-    win = place(d, 7, board, 'V');
-    if (win == 1) {
-        printboard(d, board);
-        printf("Test 3 Passed.\n\n");
-    }
-    else {
-        printboard(d, board);
-        printf("Test 3 Failed.\n\n");
-    }
-
-    printf("Test 4: Checking 4 in a Row Diagonally.\n");
-    win = place(d, 9, board, 'D');
-
-    int x = place(d, 10, board, 'X');
-    win = place(d, 10, board, 'D');
-
-    x = place(d, 11, board, 'X');
-    x = place(d, 11, board, 'X');
-    win = place(d, 11, board, 'D');
-
-    x = place(d, 12, board, 'X');
-    x = place(d, 12, board, 'X');
-    x = place(d, 12, board, 'X');
-    win = place(d, 12, board, 'D');
-
-    if (win == 1) {
-        printboard(d, board);
-        printf("Test 4 Passed.\n\n");
-    }
-    else {
-        printboard(d, board);
-        printf("Test 4 Failed.\n\n");
-    }
-
-    for (int i = 0; i < d; i++) {
-        free(board[i]);
-    }
-    free(board);
 }
